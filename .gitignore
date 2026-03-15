@@ -1,0 +1,28 @@
+# Java & Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Terraform state (never commit this)
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Secrets (NEVER commit these)
+*.env
+secrets/
+credentials/
+
+# Logs
+*.log
+logs/
