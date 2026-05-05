@@ -1,0 +1,244 @@
+{
+  "version": 4,
+  "terraform_version": "1.14.7",
+  "serial": 7,
+  "lineage": "7a5dd2e9-a009-57e0-f385-23ce42125764",
+  "outputs": {
+    "deployment_name": {
+      "value": "employee-api",
+      "type": "string"
+    },
+    "namespace_created": {
+      "value": "devops",
+      "type": "string"
+    },
+    "replicas": {
+      "value": 2,
+      "type": "number"
+    },
+    "useful_commands": {
+      "value": "kubectl get pods -n devops\nkubectl get svc  -n devops\nkubectl logs -l app=employee-api -n devops\nminikube service employee-api-service -n devops --url\n",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "kubernetes_config_map",
+      "name": "app_config",
+      "provider": "provider[\"registry.terraform.io/hashicorp/kubernetes\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "binary_data": null,
+            "data": {
+              "APP_NAME": "employee-api",
+              "LOG_LEVEL": "INFO",
+              "SERVER_PORT": "8080",
+              "SPRING_PROFILES": "docker"
+            },
+            "id": "devops/employee-api-config",
+            "immutable": false,
+            "metadata": [
+              {
+                "annotations": null,
+                "generate_name": "",
+                "generation": 0,
+                "labels": null,
+                "name": "employee-api-config",
+                "namespace": "devops",
+                "resource_version": "454764",
+                "uid": "dd230231-95ef-41bf-aa0a-61572b9d767e"
+              }
+            ]
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "api_version": "v1",
+            "kind": "ConfigMap",
+            "name": "employee-api-config",
+            "namespace": "devops"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "kubernetes_namespace.devops"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "kubernetes_namespace",
+      "name": "devops",
+      "provider": "provider[\"registry.terraform.io/hashicorp/kubernetes\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "devops",
+            "metadata": [
+              {
+                "annotations": null,
+                "generate_name": "",
+                "generation": 0,
+                "labels": {
+                  "managed-by": "terraform",
+                  "project": "devops-pipeline"
+                },
+                "name": "devops",
+                "resource_version": "454763",
+                "uid": "b4af5fb5-c96a-4d08-825a-499ebeb6091f"
+              }
+            ],
+            "timeouts": null,
+            "wait_for_default_service_account": false
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "api_version": "v1",
+            "kind": "Namespace",
+            "name": "devops"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjozMDAwMDAwMDAwMDB9fQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "kubernetes_resource_quota",
+      "name": "devops_quota",
+      "provider": "provider[\"registry.terraform.io/hashicorp/kubernetes\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "devops/devops-quota",
+            "metadata": [
+              {
+                "annotations": null,
+                "generate_name": "",
+                "generation": 0,
+                "labels": null,
+                "name": "devops-quota",
+                "namespace": "devops",
+                "resource_version": "454782",
+                "uid": "59df7ca1-6257-4878-aab2-353e1ba3f6ad"
+              }
+            ],
+            "spec": [
+              {
+                "hard": {
+                  "limits.cpu": "4",
+                  "limits.memory": "4Gi",
+                  "pods": "10",
+                  "requests.cpu": "2",
+                  "requests.memory": "2Gi"
+                },
+                "scope_selector": [],
+                "scopes": null
+              }
+            ],
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMCwidXBkYXRlIjo2MDAwMDAwMDAwMH19",
+          "dependencies": [
+            "kubernetes_namespace.devops"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "kubernetes_service",
+      "name": "employee_api",
+      "provider": "provider[\"registry.terraform.io/hashicorp/kubernetes\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "id": "devops/employee-api-service",
+            "metadata": [
+              {
+                "annotations": null,
+                "generate_name": "",
+                "generation": 0,
+                "labels": null,
+                "name": "employee-api-service",
+                "namespace": "devops",
+                "resource_version": "454771",
+                "uid": "4763df20-9b4d-48aa-90b1-cebb692d9c1c"
+              }
+            ],
+            "spec": [
+              {
+                "allocate_load_balancer_node_ports": true,
+                "cluster_ip": "10.109.251.139",
+                "cluster_ips": [
+                  "10.109.251.139"
+                ],
+                "external_ips": null,
+                "external_name": "",
+                "external_traffic_policy": "Cluster",
+                "health_check_node_port": 0,
+                "internal_traffic_policy": "Cluster",
+                "ip_families": [
+                  "IPv4"
+                ],
+                "ip_family_policy": "SingleStack",
+                "load_balancer_class": "",
+                "load_balancer_ip": "",
+                "load_balancer_source_ranges": null,
+                "port": [
+                  {
+                    "app_protocol": "",
+                    "name": "",
+                    "node_port": 30080,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "target_port": "8080"
+                  }
+                ],
+                "publish_not_ready_addresses": false,
+                "selector": {
+                  "app": "employee-api"
+                },
+                "session_affinity": "None",
+                "session_affinity_config": [],
+                "type": "NodePort"
+              }
+            ],
+            "status": [
+              {
+                "load_balancer": [
+                  {
+                    "ingress": []
+                  }
+                ]
+              }
+            ],
+            "timeouts": null,
+            "wait_for_load_balancer": true
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "api_version": "v1",
+            "kind": "Service",
+            "name": "employee-api-service",
+            "namespace": "devops"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDB9LCJzY2hlbWFfdmVyc2lvbiI6IjEifQ==",
+          "dependencies": [
+            "kubernetes_namespace.devops"
+          ]
+        }
+      ]
+    }
+  ],
+  "check_results": null
+}

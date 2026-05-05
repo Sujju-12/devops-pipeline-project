@@ -1,0 +1,61 @@
+groups:
+  - name: employee-api-alerts
+    rules:
+
+      # App is down
+      - alert: AppDown
+        expr: up{job="employee-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Employee API is DOWN"
+          description: "App has been down for more than 1 minute"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          jvm_memory_used_bytes{area="heap"}
+          / jvm_memory_max_bytes{area="heap"} * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM heap memory"
+          description: "Heap memory above 80% for 2 minutes"
+
+      # High HTTP error rate
+      - alert: HighErrorRate
+        expr: |
+          rate(http_server_requests_seconds_count{status=~"5.."}[5m])
+          / rate(http_server_requests_seconds_count[5m]) * 100 > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP error rate"
+          description: "More than 5% of requests returning 5xx errors"
+
+      # Pod restarting too much
+      - alert: PodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total
+          {namespace="devops"}[15m]) * 900 > 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod is crash looping"
+          description: "Pod restarted more than 3 times in 15 minutes"
+
+      # High CPU
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by(instance)
+          (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on node"
+          description: "CPU usage above 80% for 5 minutes"

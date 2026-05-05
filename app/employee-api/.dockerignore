@@ -1,0 +1,15 @@
+# Exclude build output — we build inside Docker
+target/
+
+# Exclude IDE and OS files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Exclude git history
+.git/
+.gitignore
+
+# Exclude docs
+*.md
