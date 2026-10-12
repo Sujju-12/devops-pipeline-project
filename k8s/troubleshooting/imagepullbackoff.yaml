@@ -1,0 +1,21 @@
+# Intentional failure lab: this image tag does not exist.
+# The pod is expected to enter ErrImagePull/ImagePullBackOff.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-imagepull
+  namespace: ai-sre-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab-imagepull
+  template:
+    metadata:
+      labels:
+        app: lab-imagepull
+    spec:
+      containers:
+        - name: missing-image
+          image: busybox:intentionally-missing-lab-tag
+          imagePullPolicy: Always
