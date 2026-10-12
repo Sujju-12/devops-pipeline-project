@@ -102,6 +102,8 @@ pipeline {
                         kubectl apply -f k8s/base/serviceaccount.yml
                         kubectl apply -f k8s/base/pdb.yml
                         kubectl apply -f k8s/base/rbac-readonly.yml
+                        kubectl apply -f k8s/base/hpa.yml
+                        kubectl apply -f ingress.yaml
                         kubectl set image deployment/"$K8S_DEPLOYMENT" "$K8S_CONTAINER"="$IMAGE" -n "$K8S_NAMESPACE"
                         kubectl rollout status deployment/"$K8S_DEPLOYMENT" -n "$K8S_NAMESPACE" --timeout=180s
                         kubectl get pods -n "$K8S_NAMESPACE" -l app=employee-api
