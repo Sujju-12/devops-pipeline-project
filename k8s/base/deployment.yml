@@ -24,6 +24,8 @@ spec:
       labels:
         app: employee-api
     spec:
+      serviceAccountName: employee-api
+      automountServiceAccountToken: false
       containers:
         - name: employee-api
           image: employee-api:latest
