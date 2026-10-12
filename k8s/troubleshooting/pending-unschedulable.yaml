@@ -1,0 +1,19 @@
+# Intentional failure lab: no node should have this node label.
+# The pod is expected to remain Pending until the selector is removed or a matching node exists.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lab-pending-unschedulable
+  namespace: ai-sre-lab
+  labels:
+    app: lab-pending-unschedulable
+spec:
+  nodeSelector:
+    training-lab-node: label-does-not-exist
+  containers:
+    - name: pause
+      image: registry.k8s.io/pause:3.10
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64Mi
