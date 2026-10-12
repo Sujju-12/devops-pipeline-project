@@ -1,0 +1,24 @@
+# Intentional failure lab: the referenced ConfigMap is deliberately not created.
+# Expect CreateContainerConfigError; inspect pod events to identify the missing dependency.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-missing-configmap
+  namespace: ai-sre-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab-missing-configmap
+  template:
+    metadata:
+      labels:
+        app: lab-missing-configmap
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          envFrom:
+            - configMapRef:
+                name: intentionally-missing-configmap
