@@ -20,7 +20,8 @@ Open Prometheus at `http://localhost:9091/alerts` and Grafana at `http://localho
 2. Temporarily scale the Deployment to zero:
 
    ```bash
-   kubectl scale deployment/employee-api --replicas=0 -n devops
+   kubectl delete hpa employee-api-hpa -n devops
+kubectl scale deployment/employee-api --replicas=0 -n devops
    ```
 
 3. Wait for the scrape target to become unavailable and for the `AppDown` alert's one-minute pending period to elapse.
@@ -45,7 +46,7 @@ kubectl apply -f k8s/troubleshooting/namespace.yaml
 kubectl apply -f k8s/troubleshooting/crashloopbackoff.yaml
 kubectl get pods -n ai-sre-lab -w
 kubectl describe pod -n ai-sre-lab -l app=crashloop-demo
-kubectl logs -n ai-sre-lab -l app=crashloop-demo --previous
+kubectl logs -n ai-sre-lab -l app=lab-crashloop --previous
 kubectl delete -f k8s/troubleshooting/crashloopbackoff.yaml
 ```
 
