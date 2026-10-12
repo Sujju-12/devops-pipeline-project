@@ -2,7 +2,7 @@
 
 A hands-on DevOps project for learning how to build, containerize, deploy, and monitor an application using common DevOps tools. The primary workload is a Java 17 / Spring Boot employee API, with Kubernetes manifests, Terraform configuration, and Prometheus/Grafana monitoring files.
 
-> **Project status:** A focused Jenkins pipeline and Kubernetes routing, autoscaling, disruption, RBAC, NetworkPolicy, load-test, and observability exercises are now included. These are configuration and practice assets; the pipeline, HPA behavior, Ingress access, policies, and alerts still need to be executed in the user's cluster and Jenkins environment before claiming runtime verification.
+> **Project scope:** The repository includes the Jenkins CI/CD pipeline, Trivy image scanning, Kubernetes routing and security manifests, load testing, and observability/troubleshooting exercises. Configure credentials, cluster access, monitoring targets, and other environment-specific settings before running the workflow.
 
 ## Goals
 
@@ -45,7 +45,7 @@ Ansible dependency-installation files, a Jenkins pipeline, Trivy scans, Kubernet
     Jenkinsfile (configured; runtime validation pending)
        |
        +--> Maven build and tests
-       +--> Trivy filesystem and image scans
+       +--> Trivy image scan (reports HIGH/CRITICAL findings)
        +--> Docker image build
        +--> Publish a Git-SHA image tag (main branch)
        +--> Deploy to Kubernetes and verify rollout (main branch)
@@ -192,7 +192,12 @@ The Deployment defines readiness/liveness checks against /actuator/health. Confi
 - CPU and memory requests/limits.
 - Readiness and liveness HTTP probes.
 - NodePort Service.
-- Horizontal Pod Autoscaler configuration targeting CPU and memory utilization.\n- PodDisruptionBudget to preserve one available pod during voluntary disruptions.\n- Application ServiceAccount without an automatically mounted API token.\n- Namespace-scoped read-only observer Role/RoleBinding.\n- Ingress NetworkPolicy for the devops and ingress-nginx namespaces (requires a policy-enforcing CNI).\n- Ingress routing for devops.local to employee-api-service.
+- Horizontal Pod Autoscaler configuration targeting CPU and memory utilization.
+- PodDisruptionBudget to preserve one available pod during voluntary disruptions.
+- Application ServiceAccount without an automatically mounted API token.
+- Namespace-scoped read-only observer Role/RoleBinding.
+- Ingress NetworkPolicy for the devops and ingress-nginx namespaces (requires a policy-enforcing CNI).
+- Ingress routing for devops.local to employee-api-service.
 
 The HPA requires a functioning metrics API (commonly provided by metrics-server) and valid resource requests. Follow [k8s/base/README.md](k8s/base/README.md) to enable metrics-server, run the load test, and watch replica changes. A load test is evidence only if the observed metrics actually trigger a scale event.
 
@@ -249,11 +254,10 @@ The root `Jenkinsfile` targets the Java application under `app/employee-api` and
 
 1. Check out the commit and derive a short Git-SHA image tag.
 2. Run `mvn clean verify` and publish JUnit test reports.
-3. Scan application files with Trivy.
-4. Build the Docker image from the Java application's Dockerfile and context.
-5. Scan the built image with Trivy.
-6. On the `main` branch, push the image to Docker Hub and update the Kubernetes Deployment.
-7. Wait for `kubectl rollout status` and list the resulting pods.
+3. Build the Docker image from the Java application's Dockerfile and context.
+4. Scan the built Docker image with Trivy and print HIGH/CRITICAL findings.
+5. On the `main` branch, push the image to Docker Hub and update the Kubernetes Deployment.
+6. Wait for `kubectl rollout status` and list the resulting pods.
 
 ### Jenkins setup required
 
@@ -264,7 +268,7 @@ The root `Jenkinsfile` targets the Java application under `app/employee-api` and
 - Set the build parameter `DOCKERHUB_REPOSITORY` to your Docker Hub repository, such as `yourusername/employee-api`. For this simple setup, make the repository public so Kubernetes can pull the image, or create and reference an imagePullSecret.
 - Configure the Jenkins SCM trigger/webhook separately if you want pushes to start builds automatically.
 
-The Trivy stages fail the build for unfixed HIGH or CRITICAL findings. Review findings and update vulnerable dependencies/base images rather than silently disabling the scan. The pipeline is a starter implementation and has not been proven against your Jenkins instance or cluster until a real run succeeds. It does not include SonarQube or Helm.
+The Trivy image scan reports HIGH and CRITICAL findings in the built image, including findings without a known fix. Vulnerability findings alone do not intentionally fail the pipeline because the scan command does not set `--exit-code 1`. Operational errors (for example, a registry or vulnerability-database access failure) can still fail the scan stage. Review findings and patch vulnerable dependencies or base-image packages as appropriate. The pipeline does not include a Trivy filesystem scan, SonarQube, or Helm.
 
 ## Troubleshooting checklist
 
@@ -276,7 +280,10 @@ The Trivy stages fail the build for unfixed HIGH or CRITICAL findings. Review fi
 | Readiness/liveness probe fails | Check application startup logs, port 8080, and /actuator/health; ensure probes allow enough startup time. |
 | HPA shows unknown metrics | Verify metrics-server, resource requests, and kubectl top pods -n devops. |
 | Prometheus target is down | Check target hostname/port from the Prometheus container, application endpoint accessibility, scrape path, and Prometheus logs. |
-| Ingress returns an error | Check that the Ingress controller is installed, the Ingress is in namespace devops, and its backend is employee-api-service:80. |\n| Jenkins cannot push an image | Check DOCKERHUB_REPOSITORY and the dockerhub-credentials Jenkins credential. |\n| Jenkins cannot deploy | Check that minikube-kubeconfig is valid from the Jenkins agent and the agent can reach the cluster. |\n| NetworkPolicy blocks traffic | Check the ingress controller namespace and whether the cluster CNI enforces NetworkPolicy. |
+| Ingress returns an error | Check that the Ingress controller is installed, the Ingress is in namespace devops, and its backend is employee-api-service:80. |
+| Jenkins cannot push an image | Check DOCKERHUB_REPOSITORY and the dockerhub-credentials Jenkins credential. |
+| Jenkins cannot deploy | Check that minikube-kubeconfig is valid from the Jenkins agent and the agent can reach the cluster. |
+| NetworkPolicy blocks traffic | Check the ingress controller namespace and whether the cluster CNI enforces NetworkPolicy. |
 | Terraform plan differs from manifests | Ensure only one tool owns each resource and compare replica counts, images, ports, and configuration. |
 
 ## Intentional Kubernetes pod-failure lab
@@ -323,7 +330,7 @@ For the memory scenario, inspect the pod's last termination state and events to 
 
 ## Learning outcomes
 
-This project provides practice with Ansible-based build-host preparation, Maven builds, Docker image creation, Jenkins CI/CD, Kubernetes deployment and intentional failure troubleshooting, HPA/load testing, Ingress routing, PDB/RBAC/NetworkPolicy controls, Terraform-managed Kubernetes resources, and Prometheus/Grafana observability. The remaining work is runtime verification: execute the pipeline, observe HPA scale changes, test Ingress and policies, and capture alert/recovery evidence.
+This project brings together Ansible-based build-host preparation, Maven builds, Docker image creation, Jenkins CI/CD with Trivy image scanning, Kubernetes deployment and intentional failure troubleshooting, HPA/load testing, Ingress routing, PDB/RBAC/NetworkPolicy controls, Terraform-managed Kubernetes resources, and Prometheus/Grafana observability. The included runbooks describe how to check scaling, routing, policies, alerts, and recovery in the target environment.
 
 ## License
 
