@@ -11,6 +11,8 @@ A hands-on DevOps project for learning how to build, containerize, deploy, and m
 - Deploy the container to Kubernetes locally with Minikube.
 - Practice Kubernetes health probes, resource requests and limits, rolling updates, and autoscaling.
 - Explore infrastructure configuration with Terraform.
+- Use Ansible to install Java/Maven build dependencies on Debian/Ubuntu hosts.
+- Practice diagnosing intentionally created Kubernetes pod failures in an isolated lab namespace.
 - Explore metrics collection and dashboards with Prometheus and Grafana.
 - Extend the workflow with automated quality and security checks.
 
@@ -26,9 +28,9 @@ A hands-on DevOps project for learning how to build, containerize, deploy, and m
 | Infrastructure as Code | Terraform, Kubernetes provider |
 | Monitoring and dashboards | Prometheus, Grafana |
 | Planned CI/CD and quality integrations | Jenkins, SonarQube, Trivy |
-| Planned configuration-management integration | Ansible |
+| Configuration management and build-host setup | Ansible (playbook included) |
 
-Jenkins, Ansible, SonarQube, and Trivy are part of the intended toolset; their presence in this list does not imply that a complete, verified automated pipeline is already configured.
+Ansible dependency-installation files and Kubernetes failure-lab manifests are included. Jenkins, SonarQube, and Trivy are part of the intended CI/CD toolset; their presence in this list does not imply that a complete, verified automated pipeline is already configured.
 
 ## Architecture and intended workflow
 
@@ -67,7 +69,12 @@ The diagram describes the intended design. Configure and test each integration b
     ├── app/
     │   └── employee-api/       # Spring Boot application, pom.xml and Dockerfile
     ├── k8s/
-    │   └── base/               # Namespace, ConfigMap, Deployment, Service and HPA
+    │   ├── base/               # Namespace, ConfigMap, Deployment, Service and HPA
+    │   └── troubleshooting/    # Intentional pod-failure manifests and lab guide
+    ├── ansible/
+    │   ├── install-build-dependencies.yml  # Install Java 17, Maven, Git and curl
+    │   ├── inventory.ini                  # Example localhost inventory
+    │   └── README.md                      # Ansible usage instructions
     ├── terraform/              # Terraform configuration for local Kubernetes resources
     ├── monitoring/
     │   ├── docker-compose.yml  # Prometheus and Grafana services
@@ -90,6 +97,7 @@ Install and configure the following for the local Kubernetes path:
 - Java 17 and Maven (for building and testing outside Docker)
 - Minikube
 - kubectl
+- Ansible (only if using the dependency-installation playbook)
 - Terraform (only if using the Terraform path)
 - Docker Compose (for the monitoring stack)
 
@@ -121,7 +129,18 @@ From the repository root:
 
 This runs the Maven verification lifecycle, including tests configured by the project. Review the command output and test reports before proceeding.
 
-## 3. Build the Java Docker image
+## 3. Install build dependencies with Ansible (optional)
+
+The `ansible/` directory contains a playbook for installing Java 17, Maven, Git, and curl on Debian/Ubuntu build hosts. It prepares the host for the Maven build; it does not install or configure Jenkins or Docker.
+
+With Ansible installed, run from the repository root:
+
+    ansible --version
+    ansible-playbook -i ansible/inventory.ini ansible/install-build-dependencies.yml --ask-become-pass
+
+The sample inventory targets localhost. The playbook uses privilege escalation, so provide the sudo password if your local configuration requires it. To use a remote build host, configure SSH access and update the inventory. Do not commit passwords, private keys, or other secrets. See [ansible/README.md](ansible/README.md) for details.
+
+## 4. Build the Java Docker image
 
 From the repository root:
 
@@ -134,7 +153,7 @@ For local Minikube deployments, make the image available to the Minikube node:
 
 The Kubernetes Deployment currently refers to employee-api:latest and uses imagePullPolicy IfNotPresent. For a shared or production-like environment, prefer immutable version tags (for example, a Git commit SHA) and a configured image registry.
 
-## 4. Deploy to Minikube with Kubernetes manifests
+## 5. Deploy to Minikube with Kubernetes manifests
 
 Start Minikube if it is not already running:
 
@@ -182,7 +201,7 @@ The Deployment defines readiness/liveness checks against /actuator/health. Confi
 
 The HPA requires a functioning metrics API (commonly provided by metrics-server) and valid resource requests. Confirm it with kubectl get hpa -n devops and kubectl top pods -n devops where metrics-server is available. The HPA may adjust the replica count after it becomes active.
 
-## 5. Optional: use Terraform
+## 6. Optional: use Terraform
 
 The terraform/ directory contains Terraform configuration using the Kubernetes provider and a local kubeconfig context for Minikube. This is a local learning setup, not an AWS/EKS deployment configuration.
 
@@ -201,7 +220,7 @@ Use terraform destroy only after reviewing the planned changes and confirming yo
 
 **Do not use Terraform and kubectl apply as competing owners of the same resources.** Choose one method and keep its configuration as the source of truth. Never commit Terraform state or state backup files to a public repository; state can contain sensitive infrastructure details.
 
-## 6. Monitoring with Prometheus and Grafana
+## 7. Monitoring with Prometheus and Grafana
 
 The monitoring/ directory contains a Docker Compose configuration, Prometheus scrape configuration and alert rules, and a Grafana Prometheus datasource configuration.
 
@@ -229,7 +248,7 @@ Useful checks:
 
 A configured scrape target or alert rule is not proof that metrics are currently being collected. Verify targets, query the expected metrics, and test alert conditions in your environment.
 
-## 7. CI/CD pipeline: intended stages
+## 8. CI/CD pipeline: intended stages
 
 The goal is to trigger a pipeline when code is pushed to GitHub. A complete implementation should perform and validate stages similar to these:
 
@@ -259,6 +278,38 @@ Store registry credentials and other secrets in the CI system's credential store
 | Ingress returns an error | Check that an Ingress controller is installed and that the backend Service name and port match the actual Service. |
 | Terraform plan differs from manifests | Ensure only one tool owns each resource and compare replica counts, images, ports, and configuration. |
 
+## Intentional Kubernetes pod-failure lab
+
+The `k8s/troubleshooting/` directory contains deliberately misconfigured workloads for practicing diagnosis. They are isolated in the `ai-sre-lab` namespace and are separate from the application's `devops` namespace.
+
+Scenarios included:
+
+- `crashloopbackoff.yaml`: exits repeatedly to trigger `CrashLoopBackOff`.
+- `oomkilled.yaml`: attempts to allocate more memory than its container limit, to practice investigating `OOMKilled`.
+- `imagepullbackoff.yaml`: uses a deliberately nonexistent image tag.
+- `pending-unschedulable.yaml`: selects a node label that should not exist, leaving the pod unscheduled.
+- `missing-configmap.yaml`: references a deliberately missing ConfigMap, causing a container configuration error.
+
+Create the isolated namespace and apply the lab scenarios:
+
+    kubectl apply -f k8s/troubleshooting/namespace.yaml
+    kubectl apply -f k8s/troubleshooting/crashloopbackoff.yaml
+    kubectl apply -f k8s/troubleshooting/oomkilled.yaml
+    kubectl apply -f k8s/troubleshooting/imagepullbackoff.yaml
+    kubectl apply -f k8s/troubleshooting/pending-unschedulable.yaml
+    kubectl apply -f k8s/troubleshooting/missing-configmap.yaml
+
+Observe and diagnose:
+
+    kubectl get pods -n ai-sre-lab -w
+    kubectl get events -n ai-sre-lab --sort-by=.lastTimestamp
+    kubectl describe pods -n ai-sre-lab
+    kubectl logs -n ai-sre-lab deployment/lab-crashloop --previous
+
+For the memory scenario, inspect the pod's last termination state and events to confirm whether it was OOMKilled; timing can vary by node and runtime. The complete walkthrough, diagnostic ideas, and cleanup commands are in [k8s/troubleshooting/README.md](k8s/troubleshooting/README.md).
+
+**Safety:** These workloads are intentionally broken and can create restart activity and events. Use them only in a disposable training cluster, never in production. Delete the individual lab resources or the `ai-sre-lab` namespace when finished.
+
 ## Security and good practices
 
 - Never commit credentials, .env files, Terraform state, or state backups.
@@ -271,7 +322,7 @@ Store registry credentials and other secrets in the CI system's credential store
 
 ## Learning outcomes
 
-This project is intended to provide practical experience with Maven builds, Docker image creation, Kubernetes deployment and troubleshooting, Terraform-managed Kubernetes resources, and Prometheus/Grafana observability. The next milestone is to implement and demonstrate the automated pipeline end to end, then document its actual results.
+This project is intended to provide practical experience with Ansible-based build-host preparation, Maven builds, Docker image creation, Kubernetes deployment and intentional failure troubleshooting, Terraform-managed Kubernetes resources, and Prometheus/Grafana observability. The next milestone is to implement and demonstrate the automated pipeline end to end, then document its actual results.
 
 ## License
 
