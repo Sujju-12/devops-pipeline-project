@@ -85,9 +85,9 @@ pipeline {
                 )]) {
                     sh '''
                         set +x
+                        trap 'docker logout >/dev/null 2>&1 || true' EXIT
                         printf '%s' "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
                         docker push "$IMAGE"
-                        docker logout
                     '''
                 }
                 withCredentials([file(
