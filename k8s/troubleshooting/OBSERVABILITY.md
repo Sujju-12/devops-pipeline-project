@@ -21,7 +21,7 @@ Open Prometheus at `http://localhost:9091/alerts` and Grafana at `http://localho
 
    ```bash
    kubectl delete hpa employee-api-hpa -n devops
-kubectl scale deployment/employee-api --replicas=0 -n devops
+   kubectl scale deployment/employee-api --replicas=0 -n devops
    ```
 
 3. Wait for the scrape target to become unavailable and for the `AppDown` alert's one-minute pending period to elapse.
@@ -30,6 +30,7 @@ kubectl scale deployment/employee-api --replicas=0 -n devops
 
    ```bash
    kubectl scale deployment/employee-api --replicas=2 -n devops
+   kubectl apply -f k8s/base/hpa.yml
    kubectl rollout status deployment/employee-api -n devops --timeout=180s
    ```
 
@@ -45,7 +46,7 @@ Apply one of the intentionally failing manifests from this folder and inspect th
 kubectl apply -f k8s/troubleshooting/namespace.yaml
 kubectl apply -f k8s/troubleshooting/crashloopbackoff.yaml
 kubectl get pods -n ai-sre-lab -w
-kubectl describe pod -n ai-sre-lab -l app=crashloop-demo
+kubectl describe pod -n ai-sre-lab -l app=lab-crashloop
 kubectl logs -n ai-sre-lab -l app=lab-crashloop --previous
 kubectl delete -f k8s/troubleshooting/crashloopbackoff.yaml
 ```
