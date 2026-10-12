@@ -15,10 +15,9 @@ kubectl apply -f k8s/base/hpa.yml
 kubectl apply -f k8s/base/pdb.yml
 kubectl apply -f k8s/base/serviceaccount.yml
 kubectl apply -f k8s/base/rbac-readonly.yml
-kubectl apply -f k8s/base/networkpolicy.yml
 ```
 
-The NetworkPolicy expects an ingress controller running in the `ingress-nginx` namespace. If your controller uses another namespace, update that namespace selector before applying the policy. NetworkPolicy enforcement depends on the cluster CNI.
+Apply the NetworkPolicy only after the ingress controller is installed and its namespace is confirmed. The example expects `ingress-nginx`; if your controller uses another namespace, update the selector first. The policy can block direct NodePort traffic from outside the allowed namespaces. NetworkPolicy enforcement depends on the cluster CNI.
 
 ## Ingress access
 
@@ -27,6 +26,7 @@ The root `ingress.yaml` routes `devops.local/` to the `employee-api-service` Ser
 ```bash
 minikube addons enable ingress
 kubectl apply -f ingress.yaml
+kubectl apply -f k8s/base/networkpolicy.yml
 kubectl get ingress devops-ingress -n devops
 ```
 
@@ -60,7 +60,7 @@ Port-forward the existing Service in one terminal:
 kubectl port-forward -n devops svc/employee-api-service 8081:80
 ```
 
-In another terminal, run `scripts/load-test.sh` (requires `hey`). Watch the HPA and pods:
+In another terminal, run `bash scripts/load-test.sh` (requires `hey`). Watch the HPA and pods:
 
 ```bash
 kubectl get hpa employee-api-hpa -n devops -w
