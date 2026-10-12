@@ -30,8 +30,8 @@ Open Prometheus at `http://localhost:9091/alerts` and Grafana at `http://localho
 
    ```bash
    kubectl scale deployment/employee-api --replicas=2 -n devops
-   kubectl apply -f k8s/base/hpa.yml
    kubectl rollout status deployment/employee-api -n devops --timeout=180s
+   kubectl apply -f k8s/base/hpa.yml
    ```
 
 6. Confirm the target returns to UP and the alert resolves.
