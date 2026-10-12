@@ -40,50 +40,40 @@ Ansible dependency-installation files, a Jenkins pipeline, Trivy scans, Kubernet
        v
     GitHub repository
        |
-       | Webhook or SCM polling (to be configured)
+       | Multibranch Pipeline / SCM trigger (configure in Jenkins)
        v
-    Jenkins pipeline (to be implemented and validated)
+    Jenkinsfile (configured; runtime validation pending)
        |
        +--> Maven build and tests
-       +--> SonarQube quality gate (optional integration)
+       +--> Trivy filesystem and image scans
        +--> Docker image build
-       +--> Trivy image scan (optional integration)
-       +--> Publish a versioned image to a registry (if configured)
+       +--> Publish a Git-SHA image tag (main branch)
+       +--> Deploy to Kubernetes and verify rollout (main branch)
        |
        v
     Kubernetes / Minikube
        |
-       +--> Deployment and rolling updates
-       +--> Service
-       +--> Readiness and liveness probes
-       +--> Horizontal Pod Autoscaler (requires metrics-server)
+       +--> Deployment, Service, Ingress and HPA
+       +--> PDB, ServiceAccount, RBAC and NetworkPolicy
        |
        v
     Prometheus --> Grafana dashboards and alerts
 
-The diagram describes the configured pipeline stages. Registry credentials, cluster access, Jenkins tools, and runtime behavior must be configured and verified locally.
+Configure Jenkins credentials and SCM triggers, then run the pipeline and cluster checks before claiming end-to-end success.
 
 ## Repository structure
 
     .
-    ├── app/
-    │   └── employee-api/       # Spring Boot application, pom.xml and Dockerfile
-    ├── k8s/
-    │   ├── base/               # Namespace, ConfigMap, Deployment, Service and HPA
-    │   └── troubleshooting/    # Intentional pod-failure manifests and lab guide
-    ├── ansible/
-    │   ├── install-build-dependencies.yml  # Install Java 17, Maven, Git and curl
-    │   ├── inventory.ini                  # Example localhost inventory
-    │   └── README.md                      # Ansible usage instructions
-    ├── terraform/              # Terraform configuration for local Kubernetes resources
-    ├── monitoring/
-    │   ├── docker-compose.yml  # Prometheus and Grafana services
-    │   ├── prometheus/          # Prometheus configuration and alert rules
-    │   └── grafana/             # Grafana datasource configuration
-    ├── Dockerfile               # Root-level Flask example, separate from the Java API
-    ├── app.py                   # Root-level Flask example
-    ├── requirements.txt         # Python dependencies for the Flask example
-    ├── ingress.yaml              # devops.local -> employee-api-service
+    ├── app/employee-api/          # Spring Boot app, Maven build and Dockerfile
+    ├── Jenkinsfile                 # Build, test, Trivy scan, publish and rollout
+    ├── scripts/load-test.sh        # HPA load test using hey
+    ├── k8s/base/                   # Deployment, Service, HPA, PDB, RBAC and policy
+    ├── k8s/troubleshooting/        # Intentional failures and observability exercise
+    ├── ansible/                    # Build dependency installation playbook
+    ├── terraform/                  # Local Kubernetes provider configuration
+    ├── monitoring/                 # Prometheus, Grafana and alert rules
+    ├── ingress.yaml                # devops.local -> employee-api-service
+    ├── Dockerfile, app.py          # Separate root-level Flask example
     └── README.md
 
 **Important:** The root-level app.py and Dockerfile are a separate Flask example. The Java API's Dockerfile is under app/employee-api/. Use the Java API Dockerfile and build context for the Spring Boot Kubernetes deployment.
