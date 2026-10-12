@@ -1,9 +1,9 @@
 # Failure, alert and recovery evidence
 
-The repository's Prometheus rules already include `AppDown` and `PodCrashLooping`. The local Compose monitoring setup scrapes the employee API at `host.minikube.internal:8081`; make sure the matching port-forward is running before expecting app alerts:
+The repository's Prometheus rules already include `AppDown` and `PodCrashLooping`. The local Compose monitoring setup scrapes the employee API at `host.minikube.internal:8081`; make sure the matching port-forward is running before expecting app alerts. Binding to 0.0.0.0 is for this local lab only; do not use it on an untrusted network:
 
 ```bash
-kubectl port-forward -n devops svc/employee-api-service 8081:80
+kubectl port-forward --address 0.0.0.0 -n devops svc/employee-api-service 8081:80
 ```
 
 Start monitoring from the `monitoring` directory:
