@@ -2,15 +2,17 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: devops-ingress
+  namespace: devops
 spec:
+  ingressClassName: nginx
   rules:
-  - host: devops.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: devops-service
-            port:
-              number: 80
+    - host: devops.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: employee-api-service
+                port:
+                  number: 80
