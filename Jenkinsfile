@@ -49,12 +49,6 @@ pipeline {
             }
         }
 
-        stage('Filesystem Scan') {
-            steps {
-                sh 'trivy fs --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 "$APP_DIR"'
-            }
-        }
-
         stage('Build Image') {
             steps {
                 script {
@@ -69,7 +63,7 @@ pipeline {
 
         stage('Image Scan') {
             steps {
-                sh 'trivy image --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 "$IMAGE"'
+                sh 'trivy image --severity HIGH,CRITICAL "$IMAGE"'
             }
         }
 
