@@ -164,7 +164,12 @@ Apply the namespace and configuration, then the base manifests:
 
     kubectl apply -f k8s/base/namespace.yml
     kubectl apply -f k8s/base/configmap.yml
-    kubectl apply -f k8s/base/
+    kubectl apply -f k8s/base/deployment.yml
+    kubectl apply -f k8s/base/service.yml
+    kubectl apply -f k8s/base/hpa.yml
+    kubectl apply -f k8s/base/pdb.yml
+    kubectl apply -f k8s/base/serviceaccount.yml
+    kubectl apply -f k8s/base/rbac-readonly.yml
 
 Inspect the deployment:
 
@@ -183,7 +188,7 @@ To inspect the NodePort Service:
     kubectl get service employee-api-service -n devops
     minikube ip
 
-The Service manifest maps port 80 to container port 8080 and declares NodePort 30080. Depending on your operating system and Minikube driver, you may need to run:
+The Service manifest maps port 80 to container port 8080 and declares NodePort 30080. The optional NetworkPolicy is intentionally not applied in the base command above: apply it after installing the ingress controller and following [k8s/base/README.md](k8s/base/README.md), because it restricts which namespaces can reach the API. Depending on your operating system and Minikube driver, you may need to run:
 
     minikube service employee-api-service -n devops --url
 
@@ -310,7 +315,7 @@ Observe and diagnose:
     kubectl get pods -n ai-sre-lab -w
     kubectl get events -n ai-sre-lab --sort-by=.lastTimestamp
     kubectl describe pods -n ai-sre-lab
-    kubectl logs -n ai-sre-lab deployment/lab-crashloop --previous
+    kubectl logs -n ai-sre-lab -l app=lab-crashloop --previous
 
 For the memory scenario, inspect the pod's last termination state and events to confirm whether it was OOMKilled; timing can vary by node and runtime. The complete walkthrough, diagnostic ideas, and cleanup commands are in [k8s/troubleshooting/README.md](k8s/troubleshooting/README.md). See [k8s/troubleshooting/OBSERVABILITY.md](k8s/troubleshooting/OBSERVABILITY.md) for the failure-to-alert-to-recovery exercise. The HPA, Ingress, PDB, RBAC, NetworkPolicy, and load-test steps are documented in [k8s/base/README.md](k8s/base/README.md).
 
