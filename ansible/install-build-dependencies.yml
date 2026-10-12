@@ -1,0 +1,46 @@
+---
+- name: Install Java and Maven build dependencies
+  hosts: build_hosts
+  become: true
+  gather_facts: true
+
+  vars:
+    build_packages:
+      - openjdk-17-jdk
+      - maven
+      - git
+      - curl
+
+  tasks:
+    - name: Refresh apt package metadata
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install build dependencies on Debian or Ubuntu
+      ansible.builtin.apt:
+        name: "{{ build_packages }}"
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Report unsupported operating system
+      ansible.builtin.fail:
+        msg: "This example currently supports Debian/Ubuntu hosts only."
+      when: ansible_os_family != "Debian"
+
+    - name: Verify Java installation
+      ansible.builtin.command: java -version
+      register: java_version
+      changed_when: false
+
+    - name: Verify Maven installation
+      ansible.builtin.command: mvn -version
+      register: maven_version
+      changed_when: false
+
+    - name: Display installed tool versions
+      ansible.builtin.debug:
+        msg:
+          - "{{ java_version.stderr | default(java_version.stdout, true) }}"
+          - "{{ maven_version.stdout_lines | default([]) }}"
