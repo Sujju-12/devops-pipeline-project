@@ -2,7 +2,7 @@
 
 A hands-on DevOps project for learning how to build, containerize, deploy, and monitor an application using common DevOps tools. The primary workload is a Java 17 / Spring Boot employee API, with Kubernetes manifests, Terraform configuration, and Prometheus/Grafana monitoring files.
 
-> **Project status:** This repository contains application code and infrastructure/monitoring configuration intended to support an end-to-end workflow. Treat the full automated CI/CD flow as work in progress until a Jenkins pipeline is configured and each stage is run and verified. This README distinguishes existing files from planned integrations.
+> **Project status:** A focused Jenkins pipeline and Kubernetes routing, autoscaling, disruption, RBAC, NetworkPolicy, load-test, and observability exercises are now included. These are configuration and practice assets; the pipeline, HPA behavior, Ingress access, policies, and alerts still need to be executed in the user's cluster and Jenkins environment before claiming runtime verification.
 
 ## Goals
 
@@ -27,10 +27,10 @@ A hands-on DevOps project for learning how to build, containerize, deploy, and m
 | Orchestration | Kubernetes, Minikube, kubectl |
 | Infrastructure as Code | Terraform, Kubernetes provider |
 | Monitoring and dashboards | Prometheus, Grafana |
-| Planned CI/CD and quality integrations | Jenkins, SonarQube, Trivy |
+| CI/CD and image security | Jenkinsfile, Maven, Trivy |
 | Configuration management and build-host setup | Ansible (playbook included) |
 
-Ansible dependency-installation files and Kubernetes failure-lab manifests are included. Jenkins, SonarQube, and Trivy are part of the intended CI/CD toolset; their presence in this list does not imply that a complete, verified automated pipeline is already configured.
+Ansible dependency-installation files, a Jenkins pipeline, Trivy scans, Kubernetes security manifests, and failure-lab scenarios are included. Jenkins requires the documented credentials and tools; no SonarQube stage or Helm chart is included.
 
 ## Architecture and intended workflow
 
@@ -61,7 +61,7 @@ Ansible dependency-installation files and Kubernetes failure-lab manifests are i
        v
     Prometheus --> Grafana dashboards and alerts
 
-The diagram describes the intended design. Configure and test each integration before presenting the complete flow as automated.
+The diagram describes the configured pipeline stages. Registry credentials, cluster access, Jenkins tools, and runtime behavior must be configured and verified locally.
 
 ## Repository structure
 
@@ -83,7 +83,7 @@ The diagram describes the intended design. Configure and test each integration b
     ├── Dockerfile               # Root-level Flask example, separate from the Java API
     ├── app.py                   # Root-level Flask example
     ├── requirements.txt         # Python dependencies for the Flask example
-    ├── ingress.yaml              # Ingress example; verify its backend Service name
+    ├── ingress.yaml              # devops.local -> employee-api-service
     └── README.md
 
 **Important:** The root-level app.py and Dockerfile are a separate Flask example. The Java API's Dockerfile is under app/employee-api/. Use the Java API Dockerfile and build context for the Spring Boot Kubernetes deployment.
@@ -197,9 +197,9 @@ The Deployment defines readiness/liveness checks against /actuator/health. Confi
 - CPU and memory requests/limits.
 - Readiness and liveness HTTP probes.
 - NodePort Service.
-- Horizontal Pod Autoscaler configuration targeting CPU and memory utilization.
+- Horizontal Pod Autoscaler configuration targeting CPU and memory utilization.\n- PodDisruptionBudget to preserve one available pod during voluntary disruptions.\n- Application ServiceAccount without an automatically mounted API token.\n- Namespace-scoped read-only observer Role/RoleBinding.\n- Ingress NetworkPolicy for the devops and ingress-nginx namespaces (requires a policy-enforcing CNI).\n- Ingress routing for devops.local to employee-api-service.
 
-The HPA requires a functioning metrics API (commonly provided by metrics-server) and valid resource requests. Confirm it with kubectl get hpa -n devops and kubectl top pods -n devops where metrics-server is available. The HPA may adjust the replica count after it becomes active.
+The HPA requires a functioning metrics API (commonly provided by metrics-server) and valid resource requests. Follow [k8s/base/README.md](k8s/base/README.md) to enable metrics-server, run the load test, and watch replica changes. A load test is evidence only if the observed metrics actually trigger a scale event.
 
 ## 6. Optional: use Terraform
 
@@ -248,22 +248,28 @@ Useful checks:
 
 A configured scrape target or alert rule is not proof that metrics are currently being collected. Verify targets, query the expected metrics, and test alert conditions in your environment.
 
-## 8. CI/CD pipeline: intended stages
+## 8. Jenkins CI/CD pipeline
 
-The goal is to trigger a pipeline when code is pushed to GitHub. A complete implementation should perform and validate stages similar to these:
+The root `Jenkinsfile` targets the Java application under `app/employee-api` and defines these stages:
 
-1. Check out the selected commit from GitHub.
-2. Run mvn clean verify and fail the pipeline if tests fail.
-3. Run static analysis and enforce the SonarQube quality gate, if configured.
-4. Build the Java Docker image.
-5. Scan the image with Trivy, if configured, and apply a defined vulnerability policy.
-6. Tag the image with an immutable version such as the Git commit SHA.
-7. Authenticate securely and push the image to the chosen registry.
-8. Update the Kubernetes Deployment to the new image.
-9. Wait for kubectl rollout status and run a smoke test against the health endpoint.
-10. Confirm Prometheus targets and application metrics after deployment.
+1. Check out the commit and derive a short Git-SHA image tag.
+2. Run `mvn clean verify` and publish JUnit test reports.
+3. Scan application files with Trivy.
+4. Build the Docker image from the Java application's Dockerfile and context.
+5. Scan the built image with Trivy.
+6. On the `main` branch, push the image to Docker Hub and update the Kubernetes Deployment.
+7. Wait for `kubectl rollout status` and list the resulting pods.
 
-Store registry credentials and other secrets in the CI system's credential store. Do not hardcode credentials in a Jenkinsfile, source code, Docker image, or README.
+### Jenkins setup required
+
+- Create a **Multibranch Pipeline** job for this GitHub repository so the `main` branch condition works.
+- Use an agent with Git, Java 17/Maven, Docker, Trivy, and kubectl installed and configured.
+- Add a Jenkins username/password credential with ID `dockerhub-credentials`.
+- Add a Jenkins **Secret file** credential with ID `minikube-kubeconfig`; the kubeconfig must work from the Jenkins agent and reach the target cluster.
+- Set the build parameter `DOCKERHUB_REPOSITORY` to your Docker Hub repository, such as `yourusername/employee-api`. For this simple setup, make the repository public so Kubernetes can pull the image, or create and reference an imagePullSecret.
+- Configure the Jenkins SCM trigger/webhook separately if you want pushes to start builds automatically.
+
+The Trivy stages fail the build for unfixed HIGH or CRITICAL findings. Review findings and update vulnerable dependencies/base images rather than silently disabling the scan. The pipeline is a starter implementation and has not been proven against your Jenkins instance or cluster until a real run succeeds. It does not include SonarQube or Helm.
 
 ## Troubleshooting checklist
 
@@ -275,7 +281,7 @@ Store registry credentials and other secrets in the CI system's credential store
 | Readiness/liveness probe fails | Check application startup logs, port 8080, and /actuator/health; ensure probes allow enough startup time. |
 | HPA shows unknown metrics | Verify metrics-server, resource requests, and kubectl top pods -n devops. |
 | Prometheus target is down | Check target hostname/port from the Prometheus container, application endpoint accessibility, scrape path, and Prometheus logs. |
-| Ingress returns an error | Check that an Ingress controller is installed and that the backend Service name and port match the actual Service. |
+| Ingress returns an error | Check that the Ingress controller is installed, the Ingress is in namespace devops, and its backend is employee-api-service:80. |\n| Jenkins cannot push an image | Check DOCKERHUB_REPOSITORY and the dockerhub-credentials Jenkins credential. |\n| Jenkins cannot deploy | Check that minikube-kubeconfig is valid from the Jenkins agent and the agent can reach the cluster. |\n| NetworkPolicy blocks traffic | Check the ingress controller namespace and whether the cluster CNI enforces NetworkPolicy. |
 | Terraform plan differs from manifests | Ensure only one tool owns each resource and compare replica counts, images, ports, and configuration. |
 
 ## Intentional Kubernetes pod-failure lab
@@ -306,7 +312,7 @@ Observe and diagnose:
     kubectl describe pods -n ai-sre-lab
     kubectl logs -n ai-sre-lab deployment/lab-crashloop --previous
 
-For the memory scenario, inspect the pod's last termination state and events to confirm whether it was OOMKilled; timing can vary by node and runtime. The complete walkthrough, diagnostic ideas, and cleanup commands are in [k8s/troubleshooting/README.md](k8s/troubleshooting/README.md).
+For the memory scenario, inspect the pod's last termination state and events to confirm whether it was OOMKilled; timing can vary by node and runtime. The complete walkthrough, diagnostic ideas, and cleanup commands are in [k8s/troubleshooting/README.md](k8s/troubleshooting/README.md). See [k8s/troubleshooting/OBSERVABILITY.md](k8s/troubleshooting/OBSERVABILITY.md) for the failure-to-alert-to-recovery exercise. The HPA, Ingress, PDB, RBAC, NetworkPolicy, and load-test steps are documented in [k8s/base/README.md](k8s/base/README.md).
 
 **Safety:** These workloads are intentionally broken and can create restart activity and events. Use them only in a disposable training cluster, never in production. Delete the individual lab resources or the `ai-sre-lab` namespace when finished.
 
@@ -322,7 +328,7 @@ For the memory scenario, inspect the pod's last termination state and events to 
 
 ## Learning outcomes
 
-This project is intended to provide practical experience with Ansible-based build-host preparation, Maven builds, Docker image creation, Kubernetes deployment and intentional failure troubleshooting, Terraform-managed Kubernetes resources, and Prometheus/Grafana observability. The next milestone is to implement and demonstrate the automated pipeline end to end, then document its actual results.
+This project provides practice with Ansible-based build-host preparation, Maven builds, Docker image creation, Jenkins CI/CD, Kubernetes deployment and intentional failure troubleshooting, HPA/load testing, Ingress routing, PDB/RBAC/NetworkPolicy controls, Terraform-managed Kubernetes resources, and Prometheus/Grafana observability. The remaining work is runtime verification: execute the pipeline, observe HPA scale changes, test Ingress and policies, and capture alert/recovery evidence.
 
 ## License
 
