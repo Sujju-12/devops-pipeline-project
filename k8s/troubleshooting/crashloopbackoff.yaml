@@ -1,0 +1,28 @@
+# Intentional failure lab: the container exits with code 1 and restarts repeatedly.
+# Apply only in the isolated ai-sre-lab namespace.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-crashloop
+  namespace: ai-sre-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab-crashloop
+  template:
+    metadata:
+      labels:
+        app: lab-crashloop
+    spec:
+      containers:
+        - name: crashloop
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'Intentional lab failure: exiting now'; exit 1"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
